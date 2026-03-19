@@ -9,13 +9,12 @@
 //     --token your-token \
 //     --build-type Your_BuildConfig_Id
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { homedir, platform } from "node:os";
+import { getDesktopConfigCandidates } from "./utils/config-persistence.js";
 
 const PACKAGE_URL = "git+https://github.com/kate-horshchar/teamcity-qa-mcp.git";
 const SERVER_NAME = "teamcity-qa-mcp";
-const CONFIG_FILENAME = "claude_desktop_config.json";
 
 interface DesktopConfig {
   mcpServers?: Record<string, unknown>;
@@ -24,56 +23,17 @@ interface DesktopConfig {
 
 /**
  * Find Claude Desktop config path.
- * Checks standard install and Windows Store (UWP) locations.
+ * Uses shared candidate detection, returns first existing or first candidate for creation.
  */
 function getConfigPath(explicitPath?: string): string {
   if (explicitPath) return explicitPath;
 
-  const os = platform();
+  const candidates = getDesktopConfigCandidates();
+  const existing = candidates.find((p) => existsSync(p));
+  if (existing) return existing;
+  if (candidates.length > 0) return candidates[0];
 
-  if (os === "win32") {
-    const candidates: string[] = [];
-
-    // Windows Store (UWP) — check first, most common on newer installs
-    const localAppData = process.env.LOCALAPPDATA;
-    if (localAppData) {
-      const packagesDir = join(localAppData, "Packages");
-      if (existsSync(packagesDir)) {
-        try {
-          const dirs = readdirSync(packagesDir);
-          for (const dir of dirs) {
-            if (dir.startsWith("Claude_")) {
-              candidates.push(
-                join(packagesDir, dir, "LocalCache", "Roaming", "Claude", CONFIG_FILENAME),
-              );
-            }
-          }
-        } catch {
-          // Permission denied — skip
-        }
-      }
-    }
-
-    // Standard install
-    const appData = process.env.APPDATA;
-    if (appData) {
-      candidates.push(join(appData, "Claude", CONFIG_FILENAME));
-    }
-
-    // Return the first candidate where the config file exists, or the first candidate for creation
-    const existing = candidates.find((p) => existsSync(p));
-    if (existing) return existing;
-    if (candidates.length > 0) return candidates[0];
-
-    throw new Error("Could not determine Claude Desktop config path");
-  }
-
-  if (os === "darwin") {
-    return join(homedir(), "Library", "Application Support", "Claude", CONFIG_FILENAME);
-  }
-
-  // Linux fallback
-  return join(homedir(), ".config", "Claude", CONFIG_FILENAME);
+  throw new Error("Could not determine Claude Desktop config path");
 }
 
 function parseArgs(args: string[]): {

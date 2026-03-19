@@ -62,3 +62,9 @@ export function success<T>(data: T): ToolSuccess<T> {
 export function failure(error: string, fallbackSuggestion?: string): ToolError {
   return { ok: false, error, ...(fallbackSuggestion ? { fallbackSuggestion } : {}) };
 }
+
+// ── Shared helpers ──────────────────────────────────────────────────
+
+export function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}

@@ -32,3 +32,10 @@ export interface TestHistoryEntry {
   status: string;
   duration?: number;
 }
+
+export interface TestOccurrenceCard {
+  testName: string;
+  status: string;
+  duration?: number;
+  className?: string;
+}

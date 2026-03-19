@@ -1,13 +1,14 @@
 // ── Aggregate Tools ─────────────────────────────────────────────────
 //
-// Tools: get_build_summary, compare_builds, get_failed_build_analysis_context
+// Tools: get_build_summary, compare_builds, get_failed_build_analysis_context,
+//        get_green_build_diff_context
 
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { TeamCityClient } from "../client.js";
 import type { McpConfig } from "../schemas/common.js";
 import type { BuildSummaryCard } from "../schemas/build.js";
-import { success, failure, BuildIdInput } from "../schemas/common.js";
+import { success, failure, errorMessage, BuildIdInput } from "../schemas/common.js";
 import {
   normalizeBuildCard,
   normalizeBuildProblem,
@@ -16,6 +17,13 @@ import {
 } from "../utils/normalization.js";
 import { extractLogExcerpt, logUnavailable, type LogExcerptResult } from "../utils/log-parsing.js";
 import { clusterByRootCause } from "../utils/matching.js";
+import {
+  buildStatusMap,
+  diffTestMaps,
+  summarizeDiff,
+  truncateDiff,
+  groupDiffByClass,
+} from "../utils/test-diff.js";
 
 export function registerAggregateTools(
   server: McpServer,
@@ -59,84 +67,50 @@ export function registerAggregateTools(
   const CompareBuildsInput = z.object({
     buildId: z.number().describe("Build ID to analyze"),
     baselineBuildId: z.number().describe("Baseline build ID to compare against"),
+    group_by_class: z
+      .boolean()
+      .optional()
+      .describe("When true, returns diff grouped by test class with per-class deltas instead of flat test lists. Ideal when many tests belong to the same class (e.g. parameterized/rotated tests)."),
   });
 
   server.tool(
     "compare_builds",
-    "Full diff of any two builds — works for green-vs-red, green-vs-green, or any pair. Shows test count breakdown per build, new/fixed/persistent failures, missing/new tests, and ignored status changes. Answers both 'what broke' and 'why do two green builds have different test counts'.",
+    "Full diff of any two builds — works for green-vs-red, green-vs-green, or any pair. Shows test count breakdown per build, new/fixed/persistent failures, missing/new tests, and ignored status changes. Use group_by_class=true to aggregate by test class instead of listing individual tests.",
     CompareBuildsInput.shape,
-    async ({ buildId, baselineBuildId }) => {
+    async ({ buildId, baselineBuildId, group_by_class }) => {
       try {
         const [currentTests, baselineTests] = await Promise.all([
           client.getAllTests(buildId),
           client.getAllTests(baselineBuildId),
         ]);
 
-        const toMap = (tests: unknown[]) => {
-          const map = new Map<string, string>();
-          for (const t of tests as any[]) {
-            map.set(t.name ?? "", t.status ?? "UNKNOWN");
-          }
-          return map;
-        };
+        const current = buildStatusMap(currentTests);
+        const baseline = buildStatusMap(baselineTests);
+        const diff = diffTestMaps(current, baseline);
+        const summary = summarizeDiff(diff);
 
-        const countByStatus = (map: Map<string, string>) => {
-          const counts = { passed: 0, failed: 0, ignored: 0, total: map.size };
-          for (const status of map.values()) {
-            if (status === "SUCCESS") counts.passed++;
-            else if (status === "FAILURE") counts.failed++;
-            else if (status === "UNKNOWN") counts.ignored++; // TC reports ignored/muted as UNKNOWN
-            else counts.ignored++;
-          }
-          return counts;
-        };
+        if (group_by_class) {
+          // Grouped mode: aggregate by test class
+          const classGroups = groupDiffByClass(diff);
 
-        const current = toMap(currentTests);
-        const baseline = toMap(baselineTests);
-
-        const newFailures: string[] = [];
-        const fixedTests: string[] = [];
-        const sameFailures: string[] = [];
-        const newTests: string[] = [];
-        const missingTests: string[] = [];
-        const becameIgnored: string[] = [];
-        const becameActive: string[] = [];
-
-        for (const [name, currStatus] of current) {
-          const baseStatus = baseline.get(name);
-          if (!baseStatus) {
-            newTests.push(name);
-          } else if (currStatus === "FAILURE" && baseStatus !== "FAILURE") {
-            newFailures.push(name);
-          } else if (currStatus === "FAILURE" && baseStatus === "FAILURE") {
-            sameFailures.push(name);
-          } else if (currStatus !== "FAILURE" && baseStatus === "FAILURE") {
-            fixedTests.push(name);
-          }
-
-          // Track ignored transitions
-          if (baseStatus) {
-            const currActive = currStatus === "SUCCESS" || currStatus === "FAILURE";
-            const baseActive = baseStatus === "SUCCESS" || baseStatus === "FAILURE";
-            if (currActive && !baseActive) {
-              becameActive.push(name);
-            } else if (!currActive && baseActive) {
-              becameIgnored.push(name);
-            }
-          }
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify(success({
+                buildId,
+                baselineBuildId,
+                baseline: baseline.counts,
+                current: current.counts,
+                summary,
+                classGroups,
+              }), null, 2),
+            }],
+          };
         }
 
-        for (const name of baseline.keys()) {
-          if (!current.has(name)) {
-            missingTests.push(name);
-          }
-        }
-
+        // Flat mode (default): truncated lists
         const MAX_LIST = 20;
-        const truncate = (list: string[]) =>
-          list.length <= MAX_LIST
-            ? list
-            : [...list.slice(0, MAX_LIST), `... and ${list.length - MAX_LIST} more`];
+        const truncatedDiff = truncateDiff(diff, MAX_LIST);
 
         return {
           content: [{
@@ -144,26 +118,10 @@ export function registerAggregateTools(
             text: JSON.stringify(success({
               buildId,
               baselineBuildId,
-              baseline: countByStatus(baseline),
-              current: countByStatus(current),
-              summary: {
-                newFailures: newFailures.length,
-                fixedTests: fixedTests.length,
-                sameFailures: sameFailures.length,
-                missingTests: missingTests.length,
-                newTests: newTests.length,
-                becameIgnored: becameIgnored.length,
-                becameActive: becameActive.length,
-              },
-              diff: {
-                newFailures: truncate(newFailures),
-                fixedTests: truncate(fixedTests),
-                sameFailures: truncate(sameFailures),
-                missingTests: truncate(missingTests),
-                newTests: truncate(newTests),
-                becameIgnored: truncate(becameIgnored),
-                becameActive: truncate(becameActive),
-              },
+              baseline: baseline.counts,
+              current: current.counts,
+              summary,
+              diff: truncatedDiff,
             }), null, 2),
           }],
         };
@@ -225,45 +183,21 @@ export function registerAggregateTools(
         try {
           const recentSuccessful = await client.getBuilds(1, "SUCCESS");
           if (recentSuccessful.length > 0) {
-            const baseline = recentSuccessful[0] as any;
+            const baselineRaw = recentSuccessful[0] as any;
             const [currentAllTests, baselineAllTests] = await Promise.all([
               client.getAllTests(buildId),
-              client.getAllTests(baseline.id),
+              client.getAllTests(baselineRaw.id),
             ]);
 
-            const toStatusMap = (tests: unknown[]) => {
-              const map = new Map<string, string>();
-              for (const t of tests as any[]) {
-                map.set(t.name ?? "", t.status ?? "UNKNOWN");
-              }
-              return map;
-            };
-
-            const current = toStatusMap(currentAllTests);
-            const baselineMap = toStatusMap(baselineAllTests);
-
-            let newFailures = 0, fixedTests = 0, sameFailures = 0, missingTests = 0, newTests = 0;
-
-            for (const [name, status] of current) {
-              const baseStatus = baselineMap.get(name);
-              if (!baseStatus) { newTests++; continue; }
-              if (status === "FAILURE" && baseStatus !== "FAILURE") newFailures++;
-              else if (status === "FAILURE" && baseStatus === "FAILURE") sameFailures++;
-              else if (status !== "FAILURE" && baseStatus === "FAILURE") fixedTests++;
-            }
-
-            for (const name of baselineMap.keys()) {
-              if (!current.has(name)) missingTests++;
-            }
+            const currentMap = buildStatusMap(currentAllTests);
+            const baselineMap = buildStatusMap(baselineAllTests);
+            const diff = diffTestMaps(currentMap, baselineMap);
+            const diffSummary = summarizeDiff(diff);
 
             comparison = {
-              baselineBuildId: baseline.id,
-              baselineBuildNumber: baseline.number ?? String(baseline.id),
-              newFailures,
-              fixedTests,
-              sameFailures,
-              missingTests,
-              newTests,
+              baselineBuildId: baselineRaw.id,
+              baselineBuildNumber: baselineRaw.number ?? String(baselineRaw.id),
+              ...diffSummary,
             };
           }
         } catch {
@@ -292,8 +226,141 @@ export function registerAggregateTools(
       }
     },
   );
-}
 
-function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
+  // ── get_green_build_diff_context ──────────────────────────────
+
+  const GreenBuildDiffInput = z.object({
+    buildId: z.number().describe("First build ID (the one being analyzed)"),
+    baselineBuildId: z.number().describe("Baseline build ID to compare against"),
+    include_neighboring: z
+      .boolean()
+      .optional()
+      .describe("Also compare with builds immediately before/after to detect if changes are consistent or an anomaly (default: false)."),
+  });
+
+  server.tool(
+    "get_green_build_diff_context",
+    "Aggregate analysis context for comparing two green (or any non-failed) builds. Returns grouped diff by class, changes for both builds, and optional neighboring build context. The green-build analogue of get_failed_build_analysis_context.",
+    GreenBuildDiffInput.shape,
+    async ({ buildId, baselineBuildId, include_neighboring }) => {
+      try {
+        // Parallel fetch: builds, tests, changes for both
+        const [
+          rawBuild, rawBaseline,
+          currentTests, baselineTests,
+          rawCurrentChanges, rawBaselineChanges,
+        ] = await Promise.all([
+          client.getBuild(buildId),
+          client.getBuild(baselineBuildId),
+          client.getAllTests(buildId),
+          client.getAllTests(baselineBuildId),
+          client.getBuildChanges(buildId),
+          client.getBuildChanges(baselineBuildId),
+        ]);
+
+        const buildCard = normalizeBuildCard(rawBuild);
+        const baselineCard = normalizeBuildCard(rawBaseline);
+        const currentChanges = rawCurrentChanges.map(normalizeChange);
+        const baselineChanges = rawBaselineChanges.map(normalizeChange);
+
+        const currentMap = buildStatusMap(currentTests);
+        const baselineMap = buildStatusMap(baselineTests);
+        const diff = diffTestMaps(currentMap, baselineMap);
+        const summary = summarizeDiff(diff);
+        const classGroups = groupDiffByClass(diff);
+
+        // Optional: cross-validate with neighboring builds
+        let neighboringContext: {
+          builds: Array<{ buildId: number; buildNumber: string; status: string }>;
+          deltas: Array<{ buildId: number; baselineId: number; newTests: number; missingTests: number; delta: string }>;
+        } | null = null;
+
+        if (include_neighboring) {
+          try {
+            const recentBuilds = await client.getBuilds(10);
+            const buildIds = (recentBuilds as any[]).map((b) => b.id as number);
+
+            // Find positions of our two builds
+            const currentIdx = buildIds.indexOf(buildId);
+            const baselineIdx = buildIds.indexOf(baselineBuildId);
+
+            // Collect unique neighboring build IDs (before/after each target)
+            const neighborIds = new Set<number>();
+            for (const idx of [currentIdx, baselineIdx]) {
+              if (idx > 0) neighborIds.add(buildIds[idx - 1]);
+              if (idx >= 0 && idx < buildIds.length - 1) neighborIds.add(buildIds[idx + 1]);
+            }
+            // Exclude the two main builds
+            neighborIds.delete(buildId);
+            neighborIds.delete(baselineBuildId);
+
+            const neighborBuilds = (recentBuilds as any[])
+              .filter((b) => neighborIds.has(b.id))
+              .map((b) => ({ buildId: b.id as number, buildNumber: (b.number ?? String(b.id)) as string, status: (b.status ?? "UNKNOWN") as string }));
+
+            // Quick diffs: compare each neighbor against baseline
+            const deltas: Array<{ buildId: number; baselineId: number; newTests: number; missingTests: number; delta: string }> = [];
+            for (const nb of neighborBuilds) {
+              try {
+                const nbTests = await client.getAllTests(nb.buildId);
+                const nbMap = buildStatusMap(nbTests);
+                const nbDiff = diffTestMaps(nbMap, baselineMap);
+                const netDelta = nbDiff.newTests.length - nbDiff.missingTests.length;
+                deltas.push({
+                  buildId: nb.buildId,
+                  baselineId: baselineBuildId,
+                  newTests: nbDiff.newTests.length,
+                  missingTests: nbDiff.missingTests.length,
+                  delta: netDelta > 0 ? `+${netDelta}` : String(netDelta),
+                });
+              } catch {
+                // Skip neighbors that fail
+              }
+            }
+
+            neighboringContext = { builds: neighborBuilds, deltas };
+          } catch {
+            // Neighboring context is best-effort
+          }
+        }
+
+        // Auto-generate conclusion
+        const totalDelta = diff.newTests.length - diff.missingTests.length;
+        const deltaStr = totalDelta > 0 ? `+${totalDelta}` : String(totalDelta);
+        const topClasses = Object.entries(classGroups)
+          .slice(0, 3)
+          .map(([cls, entry]) => `${cls} (${entry.delta})`)
+          .join(", ");
+
+        const autoConclusion = [
+          `Build #${buildCard.buildNumber} vs #${baselineCard.buildNumber}: net test count ${deltaStr} (${currentMap.counts.total} vs ${baselineMap.counts.total}).`,
+          topClasses ? `Top changed classes: ${topClasses}.` : "No test differences found.",
+          currentChanges.length > 0
+            ? `Build #${buildCard.buildNumber} has ${currentChanges.length} change(s): ${currentChanges.map((c) => c.comment.split("\n")[0]).slice(0, 3).join("; ")}.`
+            : `Build #${buildCard.buildNumber} has no associated changes.`,
+        ].join(" ");
+
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify(success({
+              builds: { current: buildCard, baseline: baselineCard },
+              currentCounts: currentMap.counts,
+              baselineCounts: baselineMap.counts,
+              summary,
+              classGroups,
+              changes: { current: currentChanges, baseline: baselineChanges },
+              neighboringContext,
+              autoConclusion,
+            }), null, 2),
+          }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify(failure(errorMessage(err))) }],
+          isError: true,
+        };
+      }
+    },
+  );
 }

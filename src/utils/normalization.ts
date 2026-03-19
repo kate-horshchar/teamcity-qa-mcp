@@ -1,6 +1,7 @@
 import type { BuildCard, BuildDetail, ChangeCard } from "../schemas/build.js";
-import type { FailedTestCard, TestFailureDetail, TestHistoryEntry } from "../schemas/test.js";
+import type { FailedTestCard, TestFailureDetail, TestHistoryEntry, TestOccurrenceCard } from "../schemas/test.js";
 import type { BuildProblemCard } from "../schemas/problem.js";
+import { extractClassName } from "./test-diff.js";
 
 // ── TeamCity raw types (loose) ──────────────────────────────────────
 // We intentionally use `any` for raw TC payloads since the API shape
@@ -98,6 +99,16 @@ export function normalizeTestHistoryEntry(raw: any): TestHistoryEntry {
     date: raw.build?.finishDate ?? raw.build?.startDate ?? "",
     status: raw.status ?? "UNKNOWN",
     duration: raw.duration != null ? Number(raw.duration) / 1000 : undefined,
+  };
+}
+
+export function normalizeTestOccurrence(raw: any): TestOccurrenceCard {
+  const testName = raw.name ?? "";
+  return {
+    testName,
+    status: raw.status ?? "UNKNOWN",
+    duration: raw.duration != null ? Number(raw.duration) / 1000 : undefined,
+    className: extractClassName(testName),
   };
 }
 

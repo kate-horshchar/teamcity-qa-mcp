@@ -129,6 +129,102 @@ function mergeWindows(windows: ErrorWindow[], lines: string[]): ErrorWindow[] {
   return merged;
 }
 
+// ── Log search ──────────────────────────────────────────────────────
+
+export interface LogSearchResult {
+  available: true;
+  totalLines: number;
+  pattern: string;
+  totalMatches: number;
+  returnedMatches: number;
+  matches: LogSearchMatch[];
+  truncated: boolean;
+}
+
+export interface LogSearchMatch {
+  lineNumber: number;
+  matchedLine: string;
+  context: string;
+  contextLineStart: number;
+  contextLineEnd: number;
+}
+
+/**
+ * Search a build log with a regex pattern and return matches with context.
+ * Similar to `grep -C` but for build logs.
+ */
+export function searchLog(
+  fullLog: string,
+  pattern: string,
+  contextLines: number = 3,
+  maxMatches: number = 50,
+  maxChars: number = 30000,
+): LogSearchResult {
+  const regex = new RegExp(pattern, "i");
+  const lines = fullLog.split("\n");
+  const totalLines = lines.length;
+
+  // Find all matching line indices
+  const matchIndices: number[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (regex.test(lines[i])) {
+      matchIndices.push(i);
+    }
+  }
+
+  const totalMatches = matchIndices.length;
+
+  // Build context windows for matches (up to maxMatches), merging overlaps
+  const limited = matchIndices.slice(0, maxMatches);
+  const matches: LogSearchMatch[] = [];
+  let totalCharsUsed = 0;
+  let truncated = matchIndices.length > maxMatches;
+
+  // Merge overlapping context windows
+  let i = 0;
+  while (i < limited.length) {
+    let windowStart = Math.max(0, limited[i] - contextLines);
+    let windowEnd = Math.min(lines.length - 1, limited[i] + contextLines);
+    const firstMatchIdx = limited[i];
+
+    // Merge with subsequent overlapping windows
+    let j = i + 1;
+    while (j < limited.length && limited[j] - contextLines <= windowEnd + 1) {
+      windowEnd = Math.min(lines.length - 1, limited[j] + contextLines);
+      j++;
+    }
+
+    const context = lines.slice(windowStart, windowEnd + 1).join("\n");
+    if (totalCharsUsed + context.length > maxChars) {
+      truncated = true;
+      break;
+    }
+    totalCharsUsed += context.length;
+
+    matches.push({
+      lineNumber: firstMatchIdx + 1, // 1-based
+      matchedLine: lines[firstMatchIdx],
+      context,
+      contextLineStart: windowStart + 1,
+      contextLineEnd: windowEnd + 1,
+    });
+
+    i = j;
+  }
+
+  return {
+    available: true,
+    totalLines,
+    pattern,
+    totalMatches,
+    returnedMatches: matches.length,
+    matches,
+    truncated,
+  };
+}
+
+// ── Graceful degradation ────────────────────────────────────────────
+
 /**
  * Return a "log unavailable" response for graceful degradation.
  */

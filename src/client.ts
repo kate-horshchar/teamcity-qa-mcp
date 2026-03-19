@@ -202,6 +202,43 @@ export class TeamCityClient {
     );
   }
 
+  // ── Paginated test access ──────────────────────────────────────
+
+  /**
+   * Get a page of test occurrences with optional server-side status filter.
+   * Unlike getAllTests(), does NOT auto-collect all pages.
+   */
+  async getTestsPage(
+    buildId: number,
+    options?: { status?: string; start?: number; count?: number },
+  ): Promise<{ tests: unknown[]; hasMore: boolean }> {
+    const start = options?.start ?? 0;
+    const count = options?.count ?? 100;
+    let locator = `build:(id:${buildId}),start:${start},count:${count}`;
+    if (options?.status) {
+      locator += `,status:${options.status}`;
+    }
+    const data = await this.fetchJson<{ testOccurrence?: unknown[]; nextHref?: string }>(
+      `/app/rest/testOccurrences?locator=${encodeURIComponent(locator)}&fields=nextHref,testOccurrence(name,status,duration)`,
+    );
+    return {
+      tests: data.testOccurrence ?? [],
+      hasMore: !!data.nextHref,
+    };
+  }
+
+  // ── Runtime config mutation ───────────────────────────────────
+
+  /**
+   * Update the bearer token at runtime.
+   * Required because the constructor copies the token into a private field;
+   * mutating config.teamcityToken alone would not update this.token.
+   */
+  updateToken(newToken: string): void {
+    this.token = newToken;
+    this.config.teamcityToken = newToken;
+  }
+
   // ── Convenience ─────────────────────────────────────────────────
 
   /** Count of failed tests for a build (lightweight). */

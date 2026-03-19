@@ -23,6 +23,7 @@ async function startServer() {
   const { registerDebuggingContextTools } = await import("./tools/debugging-context.js");
   const { registerHistoryTools } = await import("./tools/history-tools.js");
   const { registerAggregateTools } = await import("./tools/aggregate-tools.js");
+  const { registerConfigTools } = await import("./tools/config-tools.js");
 
   const config = loadConfig();
   const client = new TeamCityClient(config);
@@ -37,6 +38,7 @@ async function startServer() {
   registerDebuggingContextTools(server, client);
   registerHistoryTools(server, client, config);
   registerAggregateTools(server, client, config);
+  registerConfigTools(server, client, config);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

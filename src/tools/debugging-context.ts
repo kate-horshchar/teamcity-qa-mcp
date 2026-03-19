@@ -4,7 +4,7 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { TeamCityClient } from "../client.js";
-import { success, failure, BuildIdInput } from "../schemas/common.js";
+import { success, failure, errorMessage, BuildIdInput } from "../schemas/common.js";
 import { normalizeChange } from "../utils/normalization.js";
 
 export function registerDebuggingContextTools(
@@ -32,8 +32,4 @@ export function registerDebuggingContextTools(
       }
     },
   );
-}
-
-function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
 }

@@ -6,7 +6,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { TeamCityClient } from "../client.js";
 import type { McpConfig } from "../schemas/common.js";
-import { success, failure, BuildIdInput } from "../schemas/common.js";
+import { success, failure, errorMessage, BuildIdInput } from "../schemas/common.js";
 import { normalizeTestHistoryEntry, normalizeFailedTest } from "../utils/normalization.js";
 import { clusterByRootCause, matchesFailurePattern } from "../utils/matching.js";
 
@@ -163,8 +163,4 @@ export function registerHistoryTools(
       }
     },
   );
-}
-
-function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
 }
