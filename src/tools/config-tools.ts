@@ -50,7 +50,7 @@ export function registerConfigTools(
               message: "Build type ID updated. All subsequent tool calls will use the new value.",
               persisted: persist.persisted,
               ...(persist.persisted
-                ? { configSource: persist.source, configPath: persist.path }
+                ? { updatedConfigs: persist.updatedAll }
                 : { warning: persist.error }),
             }), null, 2),
           }],
@@ -94,7 +94,7 @@ export function registerConfigTools(
               message: "Authentication token updated. All subsequent API calls will use the new token.",
               persisted: persist.persisted,
               ...(persist.persisted
-                ? { configSource: persist.source, configPath: persist.path }
+                ? { updatedConfigs: persist.updatedAll }
                 : { warning: persist.error }),
             }), null, 2),
           }],

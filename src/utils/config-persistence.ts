@@ -20,6 +20,7 @@ export interface PersistResult {
   source?: ConfigSource;
   path?: string;
   error?: string;
+  updatedAll?: Array<{ source: ConfigSource; path: string }>;
 }
 
 // ── Claude Desktop config path detection ────────────────────────────
@@ -131,26 +132,37 @@ function updateDotenv(filePath: string, key: string, value: string): boolean {
  * Searches Claude Code, Claude Desktop, and .env in order.
  */
 export function persistEnvVar(envKey: string, envValue: string): PersistResult {
+  const updated: Array<{ source: ConfigSource; path: string }> = [];
+
   // 1. Claude Code user config: ~/.claude.json
   const claudeCodePath = join(homedir(), ".claude.json");
   if (updateJsonConfig(claudeCodePath, envKey, envValue)) {
-    return { persisted: true, source: "claude-code", path: claudeCodePath };
+    updated.push({ source: "claude-code", path: claudeCodePath });
   }
 
   // 2. Claude Desktop config
   const desktopPath = findDesktopConfigPath();
   if (desktopPath && updateJsonConfig(desktopPath, envKey, envValue)) {
-    return { persisted: true, source: "claude-desktop", path: desktopPath };
+    updated.push({ source: "claude-desktop", path: desktopPath });
   }
 
   // 3. .env in current working directory
   const dotenvPath = join(process.cwd(), ".env");
   if (updateDotenv(dotenvPath, envKey, envValue)) {
-    return { persisted: true, source: "dotenv", path: dotenvPath };
+    updated.push({ source: "dotenv", path: dotenvPath });
+  }
+
+  if (updated.length === 0) {
+    return {
+      persisted: false,
+      error: "No config file found with this server entry. Value updated in memory only (until restart).",
+    };
   }
 
   return {
-    persisted: false,
-    error: "No config file found with this server entry. Value updated in memory only (until restart).",
+    persisted: true,
+    source: updated[0].source,
+    path: updated[0].path,
+    updatedAll: updated,
   };
 }
