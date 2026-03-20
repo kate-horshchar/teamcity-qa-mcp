@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "teamcity": {
+    "teamcity-qa-mcp": {
       "command": "npx",
       "args": ["tsx", "src/index.ts"]
     }
