@@ -8,6 +8,12 @@ import type { TeamCityClient } from "../client.js";
 import { success, failure, errorMessage, BuildIdInput } from "../schemas/common.js";
 import { normalizeBuildCard, normalizeBuildDetail, normalizeTestOccurrence } from "../utils/normalization.js";
 import { extractClassName } from "../utils/test-diff.js";
+import {
+  validateTarget,
+  singleConfigLocatorPart,
+  projectLocatorPart,
+} from "../utils/target-resolution.js";
+import { sortBuildCardsByStartDateDesc } from "../utils/multi-config-aggregation.js";
 
 export function registerBuildDiscoveryTools(server: McpServer, client: TeamCityClient): void {
   // ── list_recent_builds ────────────────────────────────────────
@@ -18,16 +24,55 @@ export function registerBuildDiscoveryTools(server: McpServer, client: TeamCityC
       .enum(["SUCCESS", "FAILURE", "ERROR"])
       .optional()
       .describe("Filter by build status. Omit to return all builds."),
+    buildTypeId: z
+      .string()
+      .optional()
+      .describe("Target a specific build configuration instead of the configured default."),
+    buildTypeIds: z
+      .array(z.string())
+      .optional()
+      .describe("Target several build configurations. Builds are fetched per configuration (limit applies per configuration), merged, and sorted newest-first."),
+    projectId: z
+      .string()
+      .optional()
+      .describe("Target a whole TeamCity project — returns builds from all its configurations, including nested subprojects."),
   });
 
   server.tool(
     "list_recent_builds",
-    "List recent builds for the configured build configuration. Optionally filter by status (SUCCESS, FAILURE, ERROR). Returns compact build cards with status, state, dates, and branch info.",
+    "List recent builds. By default uses the configured build configuration; optionally target another configuration (buildTypeId), several (buildTypeIds), or a whole project including nested subprojects (projectId) — provide at most one. Optionally filter by status (SUCCESS, FAILURE, ERROR). Returns compact build cards with status, state, dates, branch, and buildTypeId.",
     ListBuildsInput.shape,
-    async ({ limit, status }) => {
+    async ({ limit, status, buildTypeId, buildTypeIds, projectId }) => {
       try {
-        const rawBuilds = await client.getBuilds(limit, status);
-        const builds = rawBuilds.map(normalizeBuildCard);
+        const targetError = validateTarget({ buildTypeId, buildTypeIds, projectId });
+        if (targetError) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify(failure(targetError)) }],
+            isError: true,
+          };
+        }
+
+        let builds;
+        if (buildTypeIds) {
+          // One request per configuration, merged newest-first
+          const perConfig = await Promise.all(
+            buildTypeIds.map((id) =>
+              client.getBuildsForLocator(singleConfigLocatorPart(id), { count: limit, status }),
+            ),
+          );
+          builds = sortBuildCardsByStartDateDesc(perConfig.flat().map(normalizeBuildCard));
+        } else if (buildTypeId || projectId) {
+          const targetPart = buildTypeId
+            ? singleConfigLocatorPart(buildTypeId)
+            : projectLocatorPart(projectId!);
+          const rawBuilds = await client.getBuildsForLocator(targetPart, { count: limit, status });
+          builds = rawBuilds.map(normalizeBuildCard);
+        } else {
+          // Default: configured build configuration, unchanged behavior
+          const rawBuilds = await client.getBuilds(limit, status);
+          builds = rawBuilds.map(normalizeBuildCard);
+        }
+
         return {
           content: [{ type: "text" as const, text: JSON.stringify(success(builds), null, 2) }],
         };

@@ -24,13 +24,19 @@ async function startServer() {
   const { registerHistoryTools } = await import("./tools/history-tools.js");
   const { registerAggregateTools } = await import("./tools/aggregate-tools.js");
   const { registerConfigTools } = await import("./tools/config-tools.js");
+  const { registerMultiConfigTools } = await import("./tools/multi-config-tools.js");
 
   const config = loadConfig();
   const client = new TeamCityClient(config);
 
+  // package.json is the single source of the version (works from both
+  // src/ via tsx and compiled dist/ — ../package.json is the repo root)
+  const { createRequire } = await import("node:module");
+  const { version } = createRequire(import.meta.url)("../package.json") as { version: string };
+
   const server = new McpServer({
     name: "teamcity-qa-mcp",
-    version: "1.0.0",
+    version,
   });
 
   registerBuildDiscoveryTools(server, client);
@@ -39,6 +45,7 @@ async function startServer() {
   registerHistoryTools(server, client, config);
   registerAggregateTools(server, client, config);
   registerConfigTools(server, client, config);
+  registerMultiConfigTools(server, client, config);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

@@ -1,4 +1,4 @@
-import type { BuildCard, BuildDetail, ChangeCard } from "../schemas/build.js";
+import type { BuildCard, BuildDetail, BuildTypeCard, ChangeCard } from "../schemas/build.js";
 import type { FailedTestCard, TestFailureDetail, TestHistoryEntry, TestOccurrenceCard } from "../schemas/test.js";
 import type { BuildProblemCard } from "../schemas/problem.js";
 import { extractClassName } from "./test-diff.js";
@@ -17,6 +17,7 @@ export function normalizeBuildCard(raw: any): BuildCard {
     buildNumber: raw.number ?? String(raw.id),
     status: raw.status ?? "UNKNOWN",
     state: raw.state ?? "unknown",
+    buildTypeId: raw.buildTypeId ?? raw.buildType?.id ?? undefined,
     branchName: raw.branchName ?? undefined,
     startDate: raw.startDate ?? undefined,
     finishDate: raw.finishDate ?? undefined,
@@ -45,6 +46,19 @@ export function normalizeBuildDetail(raw: any): BuildDetail {
       version: r.version,
       vcsBranchName: r["vcs-branch-name"] ?? r.vcsBranchName ?? undefined,
     })) ?? undefined,
+  };
+}
+
+// ── Build configuration normalization ───────────────────────────────
+
+export function normalizeBuildTypeCard(raw: any): BuildTypeCard {
+  return {
+    buildTypeId: raw.id ?? "",
+    name: raw.name ?? raw.id ?? "",
+    projectId: raw.projectId ?? "",
+    projectName: raw.projectName ?? "",
+    paused: raw.paused ?? undefined,
+    webUrl: raw.webUrl ?? undefined,
   };
 }
 

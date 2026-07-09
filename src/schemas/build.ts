@@ -5,6 +5,7 @@ export interface BuildCard {
   buildNumber: string;
   status: string;          // SUCCESS | FAILURE | ERROR | UNKNOWN
   state: string;           // queued | running | finished
+  buildTypeId?: string;
   branchName?: string;
   startDate?: string;
   finishDate?: string;
@@ -40,6 +41,17 @@ export interface BuildSummaryCard {
   build: BuildCard;
   problemCount: number;
   failedTestCount: number;
+}
+
+// ── Build configuration shapes ──────────────────────────────────────
+
+export interface BuildTypeCard {
+  buildTypeId: string;
+  name: string;
+  projectId: string;
+  projectName: string;
+  paused?: boolean;
+  webUrl?: string;
 }
 
 // ── Change shapes ───────────────────────────────────────────────────

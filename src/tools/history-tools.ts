@@ -7,8 +7,14 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { TeamCityClient } from "../client.js";
 import type { McpConfig } from "../schemas/common.js";
 import { success, failure, errorMessage, BuildIdInput } from "../schemas/common.js";
-import { normalizeTestHistoryEntry, normalizeFailedTest } from "../utils/normalization.js";
+import { normalizeTestHistoryEntry, normalizeFailedTest, normalizeBuildCard } from "../utils/normalization.js";
 import { clusterByRootCause, matchesFailurePattern } from "../utils/matching.js";
+import {
+  validateTarget,
+  singleConfigLocatorPart,
+  projectLocatorPart,
+} from "../utils/target-resolution.js";
+import { sortBuildCardsByStartDateDesc } from "../utils/multi-config-aggregation.js";
 
 export function registerHistoryTools(
   server: McpServer,
@@ -82,14 +88,26 @@ export function registerHistoryTools(
   const FailureAcrossBuildsInput = z.object({
     exceptionType: z.string().optional().describe("Exception type to search for (e.g. 'AutotestAuthException')"),
     messageFragment: z.string().optional().describe("Text fragment to search in failure messages (e.g. '503')"),
-    buildLimit: z.number().optional().describe("Number of recent builds to search (default: 10)"),
+    buildLimit: z.number().optional().describe("Number of recent builds to search (default: 10). When several configurations are targeted, applies per configuration."),
+    buildTypeId: z
+      .string()
+      .optional()
+      .describe("Search a specific build configuration instead of the configured default."),
+    buildTypeIds: z
+      .array(z.string())
+      .optional()
+      .describe("Search several build configurations (buildLimit applies per configuration)."),
+    projectId: z
+      .string()
+      .optional()
+      .describe("Search a whole TeamCity project, including nested subprojects."),
   });
 
   server.tool(
     "find_failure_across_builds",
-    "Search for a specific failure pattern across recent builds. Answers 'is this a new problem or recurring?' by checking if the same exception or error message appeared in previous builds. Returns a per-build breakdown.",
+    "Search for a specific failure pattern across recent builds. Answers 'is this a new problem or recurring?' by checking if the same exception or error message appeared in previous builds. By default searches the configured build configuration; optionally target another configuration, a list, or a whole project (provide at most one of buildTypeId, buildTypeIds, projectId) — the same pattern hitting several configurations is a strong infrastructure signal. Returns a per-build breakdown.",
     FailureAcrossBuildsInput.shape,
-    async ({ exceptionType, messageFragment, buildLimit }) => {
+    async ({ exceptionType, messageFragment, buildLimit, buildTypeId, buildTypeIds, projectId }) => {
       try {
         if (!exceptionType && !messageFragment) {
           return {
@@ -101,21 +119,48 @@ export function registerHistoryTools(
           };
         }
 
+        const targetError = validateTarget({ buildTypeId, buildTypeIds, projectId });
+        if (targetError) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify(failure(targetError)) }],
+            isError: true,
+          };
+        }
+
         const limit = buildLimit ?? 10;
-        const rawBuilds = await client.getBuilds(limit);
+
+        let buildCards;
+        if (buildTypeIds) {
+          const perConfig = await Promise.all(
+            buildTypeIds.map((id) =>
+              client.getBuildsForLocator(singleConfigLocatorPart(id), { count: limit }),
+            ),
+          );
+          buildCards = sortBuildCardsByStartDateDesc(perConfig.flat().map(normalizeBuildCard));
+        } else if (buildTypeId || projectId) {
+          const targetPart = buildTypeId
+            ? singleConfigLocatorPart(buildTypeId)
+            : projectLocatorPart(projectId!);
+          const rawBuilds = await client.getBuildsForLocator(targetPart, { count: limit });
+          buildCards = rawBuilds.map(normalizeBuildCard);
+        } else {
+          // Default: configured build configuration, unchanged behavior
+          const rawBuilds = await client.getBuilds(limit);
+          buildCards = (rawBuilds as any[]).map(normalizeBuildCard);
+        }
 
         const builds: Array<{
           buildId: number;
           buildNumber: string;
+          buildTypeId: string | undefined;
           status: string;
           finishDate: string | undefined;
           matchingTests: number;
           totalFailedTests: number;
         }> = [];
 
-        for (const rawBuild of rawBuilds as any[]) {
-          const buildId = rawBuild.id;
-          const rawTests = await client.getFailedTests(buildId);
+        for (const card of buildCards) {
+          const rawTests = await client.getFailedTests(card.buildId);
           const tests = rawTests.map(normalizeFailedTest);
 
           const matching = tests.filter((t) =>
@@ -124,10 +169,11 @@ export function registerHistoryTools(
 
           if (matching.length > 0) {
             builds.push({
-              buildId,
-              buildNumber: rawBuild.number ?? String(buildId),
-              status: rawBuild.status ?? "UNKNOWN",
-              finishDate: rawBuild.finishDate ?? undefined,
+              buildId: card.buildId,
+              buildNumber: card.buildNumber,
+              buildTypeId: card.buildTypeId,
+              status: card.status,
+              finishDate: card.finishDate,
               matchingTests: matching.length,
               totalFailedTests: tests.length,
             });
@@ -147,7 +193,7 @@ export function registerHistoryTools(
             type: "text" as const,
             text: JSON.stringify(success({
               searchPattern,
-              buildsSearched: limit,
+              buildsSearched: buildCards.length,
               buildsWithMatch: builds.length,
               firstSeen: firstSeen ? { buildId: firstSeen.buildId, buildNumber: firstSeen.buildNumber, finishDate: firstSeen.finishDate } : null,
               lastSeen: lastSeen ? { buildId: lastSeen.buildId, buildNumber: lastSeen.buildNumber, finishDate: lastSeen.finishDate } : null,

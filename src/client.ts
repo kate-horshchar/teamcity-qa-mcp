@@ -4,8 +4,12 @@
 // Uses Bearer token auth. All methods are read-only.
 
 import type { McpConfig } from "./schemas/common.js";
+import { buildsLocator } from "./utils/target-resolution.js";
 
 const REQUEST_TIMEOUT_MS = 30_000;
+
+const BUILD_LIST_FIELDS =
+  "build(id,number,buildTypeId,status,state,branchName,startDate,finishDate,queuedDate,statusText,webUrl)";
 
 export class TeamCityClient {
   private baseUrl: string;
@@ -73,15 +77,48 @@ export class TeamCityClient {
    * TC API: GET /app/rest/builds?locator=buildType:{id},count:{n}
    */
   async getBuilds(limit?: number, status?: string): Promise<unknown[]> {
-    const count = limit ?? this.config.defaultLookbackBuilds;
-    let locator = `buildType:${this.config.buildTypeId},count:${count},defaultFilter:false`;
-    if (status) {
-      locator += `,status:${status}`;
-    }
+    return this.getBuildsForLocator(`buildType:${this.config.buildTypeId}`, {
+      count: limit,
+      status,
+    });
+  }
+
+  /**
+   * List recent builds for an arbitrary target locator part, e.g.
+   * `buildType:(id:X)` or `affectedProject:(id:P)` (project including
+   * nested subprojects). Optionally restricted to a time window via
+   * sinceDate (TeamCity timestamp, yyyyMMddTHHmmss+ZZZZ).
+   */
+  async getBuildsForLocator(
+    targetPart: string,
+    opts?: { count?: number; status?: string; sinceDate?: string },
+  ): Promise<unknown[]> {
+    const locator = buildsLocator(targetPart, {
+      count: opts?.count ?? this.config.defaultLookbackBuilds,
+      status: opts?.status,
+      sinceDate: opts?.sinceDate,
+    });
     const data = await this.fetchJson<{ build?: unknown[] }>(
-      `/app/rest/builds?locator=${encodeURIComponent(locator)}&fields=build(id,number,status,state,branchName,startDate,finishDate,queuedDate,statusText,webUrl)`,
+      `/app/rest/builds?locator=${encodeURIComponent(locator)}&fields=${BUILD_LIST_FIELDS}`,
     );
     return data.build ?? [];
+  }
+
+  /**
+   * List build configurations of a project.
+   * TC API: GET /app/rest/buildTypes?locator=affectedProject:(id:{projectId})
+   *
+   * `affectedProject` matches direct AND indirect parents, i.e. includes
+   * configurations from nested subprojects; `project` matches the direct
+   * parent only.
+   */
+  async getProjectBuildTypes(projectId: string, includeSubprojects = true): Promise<unknown[]> {
+    const dimension = includeSubprojects ? "affectedProject" : "project";
+    const locator = `${dimension}:(id:${projectId})`;
+    const data = await this.fetchJson<{ buildType?: unknown[] }>(
+      `/app/rest/buildTypes?locator=${encodeURIComponent(locator)}&fields=buildType(id,name,projectId,projectName,paused,webUrl)`,
+    );
+    return data.buildType ?? [];
   }
 
   /**
