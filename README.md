@@ -1,6 +1,7 @@
-# teamcity-qa-mcp
+# TeamCity QA Intelligence
 
-Read-only MCP server for AI-assisted root-cause analysis of TeamCity build failures.
+> Read-only MCP server for AI-assisted root-cause analysis of TeamCity build failures.
+> Package and server name: `teamcity-qa-mcp`.
 
 ## The problem
 
