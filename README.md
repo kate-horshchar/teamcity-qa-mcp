@@ -1,5 +1,7 @@
 # TeamCity QA Intelligence
 
+[![CI](https://github.com/kate-horshchar/teamcity-qa-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/kate-horshchar/teamcity-qa-mcp/actions/workflows/ci.yml)
+
 > Read-only MCP server for AI-assisted root-cause analysis of TeamCity build failures.
 > Package and server name: `teamcity-qa-mcp`.
 
