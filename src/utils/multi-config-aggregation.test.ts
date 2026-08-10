@@ -4,6 +4,7 @@ import {
   toTeamCityDate,
   windowStart,
   isFailedStatus,
+  countBuildsInWindow,
   aggregateConfigResults,
   findCrossConfigClusters,
   diffFailedTestNames,
@@ -26,7 +27,7 @@ function build(overrides: Partial<BuildCard>): BuildCard {
 function configResult(overrides: Partial<ConfigFailureSummary>): ConfigFailureSummary {
   return {
     buildTypeId: "Cfg",
-    builds: [],
+    buildsInWindow: { total: 0, passed: 0, failed: 0, running: 0 },
     failedTestCount: 0,
     topClusters: [],
     ...overrides,
@@ -64,23 +65,34 @@ describe("isFailedStatus", () => {
   });
 });
 
+describe("countBuildsInWindow", () => {
+  it("summarizes builds into total/passed/failed/running", () => {
+    expect(
+      countBuildsInWindow([
+        build({ status: "SUCCESS" }),
+        build({ status: "FAILURE" }),
+        build({ status: "ERROR" }),
+        build({ status: "SUCCESS", state: "running" }),
+      ]),
+    ).toEqual({ total: 4, passed: 1, failed: 2, running: 1 });
+  });
+
+  it("returns zeros for an empty window", () => {
+    expect(countBuildsInWindow([])).toEqual({ total: 0, passed: 0, failed: 0, running: 0 });
+  });
+});
+
 describe("aggregateConfigResults", () => {
   it("aggregates counts across configs", () => {
     const counts = aggregateConfigResults([
       configResult({
         buildTypeId: "Cfg_A",
-        builds: [
-          build({ buildId: 1, status: "FAILURE" }),
-          build({ buildId: 2, status: "SUCCESS" }),
-        ],
+        buildsInWindow: { total: 2, passed: 1, failed: 1, running: 0 },
         failedTestCount: 7,
       }),
       configResult({
         buildTypeId: "Cfg_B",
-        builds: [
-          build({ buildId: 3, status: "SUCCESS" }),
-          build({ buildId: 4, status: "SUCCESS", state: "running" }),
-        ],
+        buildsInWindow: { total: 2, passed: 1, failed: 0, running: 1 },
       }),
     ]);
 
@@ -99,7 +111,7 @@ describe("aggregateConfigResults", () => {
   it("isolates config errors from build counts", () => {
     const counts = aggregateConfigResults([
       configResult({ buildTypeId: "Cfg_A", error: "TeamCity API error: 404 Not Found" }),
-      configResult({ buildTypeId: "Cfg_B", builds: [build({ buildId: 1 })] }),
+      configResult({ buildTypeId: "Cfg_B", buildsInWindow: { total: 1, passed: 1, failed: 0, running: 0 } }),
     ]);
 
     expect(counts.configsWithErrors).toBe(1);
@@ -112,7 +124,7 @@ describe("aggregateConfigResults", () => {
     const counts = aggregateConfigResults([
       configResult({
         buildTypeId: "Cfg_A",
-        builds: [build({ buildId: 1, status: "ERROR" })],
+        buildsInWindow: { total: 1, passed: 0, failed: 1, running: 0 },
         failedTestCount: 0,
       }),
     ]);

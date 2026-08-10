@@ -29,11 +29,22 @@ export function windowStart(sinceHours: number, now: Date = new Date()): Date {
 
 // ── Per-config result shape ─────────────────────────────────────────
 
+export interface BuildWindowCounts {
+  total: number;
+  passed: number;
+  failed: number;
+  running: number;
+}
+
 export interface ConfigFailureSummary {
   buildTypeId: string;
   name?: string;
-  /** Builds within the analysis window, newest first. */
-  builds: BuildCard[];
+  /**
+   * Counts of builds within the analysis window. The full per-build list is
+   * intentionally omitted to keep project-wide responses compact; fetch it
+   * for a single configuration with list_recent_builds when needed.
+   */
+  buildsInWindow: BuildWindowCounts;
   latestBuild?: { buildId: number; buildNumber: string; status: string };
   /** Failed test count of the most recent failed build in the window (0 when none). */
   failedTestCount: number;
@@ -62,6 +73,21 @@ export function isFailedStatus(status: string): boolean {
   return status === "FAILURE" || status === "ERROR";
 }
 
+/** Summarize a config's builds in the window into compact counts. */
+export function countBuildsInWindow(builds: BuildCard[]): BuildWindowCounts {
+  const counts: BuildWindowCounts = { total: builds.length, passed: 0, failed: 0, running: 0 };
+  for (const build of builds) {
+    if (build.state === "running") {
+      counts.running += 1;
+    } else if (isFailedStatus(build.status)) {
+      counts.failed += 1;
+    } else if (build.status === "SUCCESS") {
+      counts.passed += 1;
+    }
+  }
+  return counts;
+}
+
 export function aggregateConfigResults(perConfig: ConfigFailureSummary[]): MultiConfigCounts {
   const counts: MultiConfigCounts = {
     configsAnalyzed: perConfig.length,
@@ -79,19 +105,14 @@ export function aggregateConfigResults(perConfig: ConfigFailureSummary[]): Multi
       counts.configsWithErrors += 1;
       continue;
     }
-    counts.totalBuilds += result.builds.length;
+    const w = result.buildsInWindow;
+    counts.totalBuilds += w.total;
+    counts.failedBuilds += w.failed;
+    counts.successfulBuilds += w.passed;
+    counts.runningBuilds += w.running;
     counts.totalFailedTests += result.failedTestCount;
-    if (result.failedTestCount > 0 || result.builds.some((b) => isFailedStatus(b.status))) {
+    if (result.failedTestCount > 0 || w.failed > 0) {
       counts.configsWithFailures += 1;
-    }
-    for (const build of result.builds) {
-      if (build.state === "running") {
-        counts.runningBuilds += 1;
-      } else if (isFailedStatus(build.status)) {
-        counts.failedBuilds += 1;
-      } else if (build.status === "SUCCESS") {
-        counts.successfulBuilds += 1;
-      }
     }
   }
 

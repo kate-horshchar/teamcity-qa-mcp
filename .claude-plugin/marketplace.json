@@ -1,0 +1,13 @@
+{
+  "name": "teamcity-qa-mcp",
+  "owner": {
+    "name": "Kate Horshchar"
+  },
+  "plugins": [
+    {
+      "name": "teamcity-qa",
+      "source": "./plugin",
+      "description": "QA analysis plugin for TeamCity builds — triage failures, compare builds, review flaky tests, generate HTML build-health reports"
+    }
+  ]
+}

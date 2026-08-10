@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BrightCart — Build Health Report</title>
+<!--
+  Sample output of /generate-report, filled with fictional BrightCart data
+  (see examples/multi-config-summary.md for the source scenario). This file
+  is fully self-contained: inline CSS only, no JavaScript, zero external
+  requests — it renders correctly offline and inside restrictive iframes.
+-->
+<style>
+  :root {
+    --green: #1a7f37; --green-bg: #dafbe1;
+    --amber: #9a6700; --amber-bg: #fff8c5;
+    --red: #cf222e;   --red-bg: #ffebe9;
+    --gray: #57606a;  --gray-bg: #f6f8fa;
+    --border: #d0d7de; --text: #1f2328; --muted: #57606a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px; color: var(--text); background: #ffffff;
+    font: 14px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .report { max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 28px 0 10px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+  .meta { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .badge {
+    display: inline-block; padding: 6px 14px; border-radius: 20px;
+    font-weight: 600; font-size: 14px; letter-spacing: .3px;
+  }
+  .badge.green { background: var(--green-bg); color: var(--green); }
+  .badge.amber { background: var(--amber-bg); color: var(--amber); }
+  .badge.red   { background: var(--red-bg);   color: var(--red); }
+  .badge.gray  { background: var(--gray-bg);  color: var(--gray); }
+  .cards { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
+  .card {
+    flex: 1 1 120px; min-width: 120px; padding: 12px 16px;
+    border: 1px solid var(--border); border-radius: 8px; background: var(--gray-bg);
+  }
+  .card .num { font-size: 24px; font-weight: 700; display: block; }
+  .card .label { color: var(--muted); font-size: 12px; }
+  .card.bad .num { color: var(--red); }
+  .card.good .num { color: var(--green); }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+  .status { font-weight: 600; }
+  .status.success { color: var(--green); }
+  .status.failure { color: var(--red); }
+  .status.unknown { color: var(--gray); }
+  .cluster {
+    border: 1px solid var(--border); border-left: 4px solid var(--red);
+    border-radius: 6px; padding: 10px 14px; margin: 10px 0; background: #fff;
+  }
+  .cluster.cross-config { border-left-color: var(--amber); background: var(--amber-bg); }
+  .cluster .head { font-weight: 600; }
+  .cluster .tag {
+    display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 8px;
+    border-radius: 10px; margin-left: 8px; vertical-align: middle;
+  }
+  .tag.new { background: var(--red-bg); color: var(--red); }
+  .tag.recurring { background: var(--gray-bg); color: var(--gray); }
+  .tag.infra { background: var(--amber-bg); color: var(--amber); }
+  .cluster .detail { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  code, .mono { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12.5px; }
+  ul.takeaways { padding-left: 20px; }
+  ul.takeaways li { margin: 6px 0; }
+  .footer { margin-top: 28px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--border); padding-top: 10px; }
+  a { color: #0969da; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="report">
+
+  <h1>BrightCart — Build Health Report</h1>
+  <div class="meta">
+    Target: project <span class="mono">BrightCart</span> (3 configurations, nested subprojects included) &middot;
+    Window: 2026-07-06 09:00 UTC &ndash; 2026-07-07 09:00 UTC (24h) &middot;
+    Generated: 2026-07-07 09:03 UTC
+  </div>
+
+  <span class="badge red">RED — cross-config failure detected</span>
+
+  <div class="cards">
+    <div class="card"><span class="num">9</span><span class="label">Builds in window</span></div>
+    <div class="card good"><span class="num">7</span><span class="label">Passed</span></div>
+    <div class="card bad"><span class="num">2</span><span class="label">Failed</span></div>
+    <div class="card bad"><span class="num">14</span><span class="label">Failed tests</span></div>
+  </div>
+
+  <h2>Configuration health</h2>
+  <table>
+    <thead><tr><th>Configuration</th><th>Latest</th><th>Builds</th><th>Failed tests</th><th>Dominant failure</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">BrightCart_Checkout_ApiTests</td>
+        <td><span class="status failure">FAILURE</span></td>
+        <td>1</td>
+        <td>8</td>
+        <td>SocketTimeoutException (shared)</td>
+      </tr>
+      <tr>
+        <td class="mono">BrightCart_Catalog_ApiTests</td>
+        <td><span class="status failure">FAILURE</span></td>
+        <td>1</td>
+        <td>6</td>
+        <td>SocketTimeoutException (shared)</td>
+      </tr>
+      <tr>
+        <td class="mono">BrightCart_Search_ApiTests</td>
+        <td><span class="status success">SUCCESS</span></td>
+        <td>7</td>
+        <td>0</td>
+        <td>&mdash;</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Builds</h2>
+  <table>
+    <thead><tr><th>Build</th><th>Configuration</th><th>Status</th><th>Started</th><th>Failed tests</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><a href="https://ci.brightcart.example/viewLog.html?buildId=48213">#1042</a></td>
+        <td class="mono">BrightCart_Checkout_ApiTests</td>
+        <td><span class="status failure">FAILURE</span></td>
+        <td>2026-07-06 09:12 UTC</td>
+        <td>8</td>
+      </tr>
+      <tr>
+        <td><a href="https://ci.brightcart.example/viewLog.html?buildId=48220">#889</a></td>
+        <td class="mono">BrightCart_Catalog_ApiTests</td>
+        <td><span class="status failure">FAILURE</span></td>
+        <td>2026-07-06 21:40 UTC</td>
+        <td>6</td>
+      </tr>
+      <tr>
+        <td><a href="https://ci.brightcart.example/viewLog.html?buildId=48225">#312</a></td>
+        <td class="mono">BrightCart_Search_ApiTests</td>
+        <td><span class="status success">SUCCESS</span></td>
+        <td>2026-07-07 08:50 UTC</td>
+        <td>0</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Notable failures</h2>
+
+  <div class="cluster cross-config">
+    <div class="head">SocketTimeoutException: connect timed out — 11 tests
+      <span class="tag infra">cross-config</span>
+    </div>
+    <div class="detail">Affects: BrightCart_Checkout_ApiTests, BrightCart_Catalog_ApiTests</div>
+    <div class="detail">Representative: <code>CheckoutPaymentTests.chargesCard</code></div>
+    <div class="detail">Two independent test suites time out on the same exception in the same window — a strong signal of a shared downstream dependency rather than a code issue in either suite.</div>
+  </div>
+
+  <div class="cluster">
+    <div class="head">AssertionError: expected status 200 but was 500 — 1 test
+      <span class="tag recurring">recurring</span>
+    </div>
+    <div class="detail">Representative: <code>CheckoutShippingTests.calculatesInternationalShipping</code></div>
+    <div class="detail">Pre-existing, unrelated to the timeout cluster; unchanged from the previous window.</div>
+  </div>
+
+  <h2>Recurring vs new</h2>
+  <p>11 of 14 failures are new this window (the cross-config timeout cluster). The remaining 3 — 1 shipping failure and 2 uncorrelated Catalog failures — were already present before this window.</p>
+
+  <h2>Key takeaways</h2>
+  <ul class="takeaways">
+    <li>Checkout and Catalog fail with the identical timeout exception — investigate the shared dependency both call before touching either codebase.</li>
+    <li>Search suite is fully green across all 7 builds in the window.</li>
+    <li>The shipping failure in Checkout is unrelated and pre-existing — track separately.</li>
+  </ul>
+
+  <div class="footer">
+    Generated by the TeamCity QA plugin &middot; data from the teamcity-qa-mcp server &middot; self-contained report, no external resources.
+    Sample report — all data is fictional.
+  </div>
+
+</div>
+</body>
+</html>

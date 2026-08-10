@@ -21,6 +21,7 @@ import {
   toTeamCityDate,
   windowStart,
   isFailedStatus,
+  countBuildsInWindow,
   aggregateConfigResults,
   findCrossConfigClusters,
   diffFailedTestNames,
@@ -189,7 +190,7 @@ async function analyzeConfig(
   const base: ConfigFailureSummary = {
     buildTypeId: cfg.buildTypeId,
     ...(cfg.name ? { name: cfg.name } : {}),
-    builds: [],
+    buildsInWindow: { total: 0, passed: 0, failed: 0, running: 0 },
     failedTestCount: 0,
     topClusters: [],
   };
@@ -200,7 +201,7 @@ async function analyzeConfig(
       sinceDate: opts.sinceDate,
     });
     const builds = rawBuilds.map(normalizeBuildCard);
-    base.builds = builds;
+    base.buildsInWindow = countBuildsInWindow(builds);
 
     const latest = builds[0];
     if (latest) {
@@ -239,6 +240,12 @@ async function analyzeConfig(
 
     return base;
   } catch (err) {
-    return { ...base, builds: [], failedTestCount: 0, topClusters: [], error: errorMessage(err) };
+    return {
+      ...base,
+      buildsInWindow: { total: 0, passed: 0, failed: 0, running: 0 },
+      failedTestCount: 0,
+      topClusters: [],
+      error: errorMessage(err),
+    };
   }
 }
