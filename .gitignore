@@ -1,6 +1,3 @@
 node_modules/
 dist/
 .env
-*.stackdump
-teamcity-qa.zip
-PLAN.md
