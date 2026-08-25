@@ -223,13 +223,7 @@ If you are trying it for the first time, the most useful thing you can report is
 
 ## Roadmap
 
-Unfinished items and new ideas live in [GitHub Issues](https://github.com/kate-horshchar/teamcity-qa-mcp/issues) (`enhancement`, `good first issue`).
-
-| Item | Status |
-|---|---|
-| Branch-aware analysis (filter builds/tests by VCS branch) | Planned |
-| Config-scoped test history (optional target for `get_test_history`) | Planned |
-| Configurable root-cause clustering rules | Planned |
+Planned work lives in [GitHub Issues](https://github.com/kate-horshchar/teamcity-qa-mcp/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement) — the `enhancement` label is the roadmap.
 
 ## Versioning & releases
 
