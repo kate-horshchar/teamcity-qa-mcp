@@ -13,6 +13,12 @@ When a CI test run goes red, finding out *why* is manual detective work: open th
 
 This MCP server gives any MCP-compatible AI client structured, compact access to TeamCity data: builds, failed tests, logs, changes, history, diffs. The AI does the reasoning — classifying a failure as a **code change** (with the commit and author), **flaky behavior**, or an **infrastructure problem** — while the server does the data retrieval and normalization. The division of labor is strict: the server never guesses, the AI never scrapes.
 
+![Build health report — the state of the window](docs/images/sample-report-overview.png)
+
+![Build health report — root causes and what they mean](docs/images/sample-report-analysis.png)
+
+*Output of the `/generate-report` command: what happened in the window, then what it means — eleven of the fourteen failures collapse into one cross-config root cause. All data in this sample is fictional.*
+
 ## Is this for you?
 
 **Works well if** your team runs tests on TeamCity, you triage red builds regularly, and a single failure often takes down many tests at once. You already use an AI assistant that speaks MCP.
