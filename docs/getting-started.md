@@ -2,10 +2,6 @@
 
 From zero to one complete build analysis in about ten minutes.
 
-This page is a single, finished path: connect the server, verify it, run one
-real analysis, and judge the result. Follow it end to end — at the bottom there
-are three questions worth answering once you get there.
-
 ## 1. Create a TeamCity access token
 
 1. Log in to your TeamCity instance.
@@ -49,21 +45,17 @@ Ask your AI client:
 > List the recent builds
 
 **This worked if** you get back a short list of build cards — build number,
-status, start and finish dates, branch. Nothing more is needed at this stage:
-if the cards are there, the token, the URL, and the configuration ID are all
-correct.
+status, start and finish dates, branch. If the cards are there, the token, the
+URL, and the configuration ID are all correct.
 
-**If it did not work**, jump to [Troubleshooting](#troubleshooting) below
-before continuing — the next step depends on this one.
+**If it did not work**, see [Troubleshooting](#troubleshooting) before
+continuing.
 
 ## 5. Run one full analysis
 
 This is the part worth judging. Ask:
 
 > Find the most recent failed build and tell me why it failed
-
-The AI will pull a one-call analysis context, cluster the failures by root
-cause, and compare the build against the last green one.
 
 If you installed the [Claude plugin](../plugin/README.md), the same workflow
 runs as `/analyze-failed-build` — a fixed prompt instead of a free-form one.
@@ -80,9 +72,8 @@ runs as `/analyze-failed-build` — a fixed prompt instead of a free-form one.
 - A short **what to check first** list, ordered.
 
 Compare what you got with the worked example in
-[`examples/analyze-failed-build.md`](../examples/analyze-failed-build.md) — it
-shows the same workflow on fictional data, including the shape of the tool
-responses behind it.
+[`examples/analyze-failed-build.md`](../examples/analyze-failed-build.md),
+which runs the same workflow on fictional data.
 
 **No failed builds right now?** Ask for an older one instead:
 *"List the last 20 builds including failures"*, then point the analysis at a
@@ -90,16 +81,14 @@ specific build ID.
 
 ## 6. Tell me how it went
 
-You have now seen the tool do the thing it exists to do. Three questions are
-more useful to me than anything else:
+Three questions:
 
 1. Did the setup work using only this page, without guessing anything?
 2. Did the analysis group the failures the way you would have grouped them?
 3. What did it miss that you would have checked yourself?
 
 [Open an issue](https://github.com/kate-horshchar/teamcity-qa-mcp/issues/new/choose)
-with whatever you have — a half-answer is fine, and a description of where you
-gave up is the most valuable report of all.
+with whatever you have — a half-answer is fine, including where you gave up.
 
 ## Where to go next
 
@@ -115,9 +104,8 @@ gave up is the most valuable report of all.
 
 - **The server never starts / shows as failed to connect** — almost always a
   missing environment variable. All three of `TEAMCITY_URL`, `TEAMCITY_TOKEN`
-  and `TEAMCITY_BUILD_TYPE_ID` are required, and the server exits immediately
-  if one is absent. The error text goes to the MCP server log, not to the chat:
-  in Claude Code, check the server entry with `claude mcp list`.
+  and `TEAMCITY_BUILD_TYPE_ID` are required. The error goes to the MCP server
+  log, not to the chat: in Claude Code, check with `claude mcp list`.
 - **401 Unauthorized** — the token expired or lacks permissions. Create a new
   one and update it without restarting: ask the AI to call `set_auth_token`.
 - **Empty build list** — check `TEAMCITY_BUILD_TYPE_ID`: it must be the ID

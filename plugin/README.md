@@ -1,12 +1,11 @@
 # TeamCity QA Plugin
 
-Claude plugin for practical QA analysis of TeamCity builds. It packages proven
-workflows as slash commands and works in **Claude Code**, **Claude Desktop**,
-and **Claude Cowork** — plugins share one format across all three.
+Claude plugin for practical QA analysis of TeamCity builds. Packages the
+workflows as slash commands; works in **Claude Code**, **Claude Desktop**, and
+**Claude Cowork**.
 
-The plugin uses the [teamcity-qa-mcp](../README.md) MCP server for data access:
-it contains no credentials and makes no network calls of its own, it only drives
-the server's tools.
+It uses the [teamcity-qa-mcp](../README.md) MCP server for data access, so it
+contains no credentials and makes no network calls of its own.
 
 ## Requirements
 
@@ -89,11 +88,10 @@ Two skills keep every command consistent:
 
 ## Scheduled health checks
 
-`/generate-report` with no arguments is deliberately autonomous — it asks no
-follow-up questions. That makes it directly usable in a scheduled task ("every
-morning run `/generate-report`"), producing a daily HTML health report. The
-logic lives in the plugin rather than in anyone's personal prompt, so the report
-stays the same no matter who or what triggers it.
+`/generate-report` with no arguments asks no follow-up questions, so it works
+directly as a scheduled task ("every morning run `/generate-report`"). The logic
+lives in the plugin rather than in anyone's personal prompt, so the report comes
+out the same no matter who triggers it.
 
 ## Using without Claude
 

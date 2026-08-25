@@ -17,13 +17,13 @@ This MCP server gives any MCP-compatible AI client structured, compact access to
 
 ![Build health report — root causes and what they mean](docs/images/sample-report-analysis.png)
 
-*Output of the `/generate-report` command: what happened in the window, then what it means — eleven of the fourteen failures collapse into one cross-config root cause. All data in this sample is fictional.*
+*Output of `/generate-report`: eleven of the fourteen failures collapse into one cross-config root cause. All data in this sample is fictional.*
 
 ## Is this for you?
 
-**Works well if** your team runs tests on TeamCity, you triage red builds regularly, and a single failure often takes down many tests at once. You already use an AI assistant that speaks MCP.
+**Works well if** your team runs tests on TeamCity, you triage red builds regularly, and a single failure often takes down many tests at once.
 
-**Not for you if** your CI is Jenkins, GitHub Actions, or GitLab — this reads the TeamCity REST API and nothing else. Also not for you if you want automated remediation: this tool reads and explains, it never fixes or reruns anything.
+**Not for you if** your CI is Jenkins, GitHub Actions, or GitLab — this reads the TeamCity REST API and nothing else. Or if you want automated remediation: it reads and explains, it never fixes or reruns anything.
 
 ## Features
 
@@ -63,7 +63,7 @@ No cloning, no source code, no `.env` file needed.
 <details>
 <summary>Install from GitHub instead of npm</summary>
 
-If your network blocks the public npm registry but allows GitHub, replace the last line with a git reference. Everything else stays the same:
+If your network blocks the public npm registry but allows GitHub, use a git reference as the package source:
 
 ```bash
 claude mcp add --scope user --transport stdio teamcity-qa-mcp \
@@ -219,11 +219,11 @@ TeamCity tokens inherit the permissions of the account that creates them — the
 
 Ideas, feedback, and bug reports are welcome — [open an issue](https://github.com/kate-horshchar/teamcity-qa-mcp/issues/new/choose).
 
-If you are evaluating the tool for the first time, [Getting started](docs/getting-started.md) walks through one complete analysis end to end; telling me where that path broke down is the most useful feedback there is.
+If you are trying it for the first time, the most useful thing you can report is where [Getting started](docs/getting-started.md) broke down for you.
 
 ## Roadmap
 
-Open-source core plans. Unfinished items and new ideas live in [GitHub Issues](https://github.com/kate-horshchar/teamcity-qa-mcp/issues) (`enhancement`, `good first issue`).
+Unfinished items and new ideas live in [GitHub Issues](https://github.com/kate-horshchar/teamcity-qa-mcp/issues) (`enhancement`, `good first issue`).
 
 | Item | Status |
 |---|---|
