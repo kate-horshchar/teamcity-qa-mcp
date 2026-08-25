@@ -3,6 +3,6 @@
   "version": "1.3.0",
   "description": "QA analysis plugin for TeamCity builds — triage failures, compare builds, review flaky tests, analyze test count stability",
   "author": {
-    "name": "Kate Horshchar"
+    "name": "Kateryna Horshchar"
   }
 }

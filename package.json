@@ -34,5 +34,29 @@
   },
   "overrides": {
     "esbuild": "^0.28.1"
-  }
+  },
+  "license": "MPL-2.0",
+  "author": "Kateryna Horshchar",
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kate-horshchar/teamcity-qa-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kate-horshchar/teamcity-qa-mcp/issues"
+  },
+  "homepage": "https://github.com/kate-horshchar/teamcity-qa-mcp#readme",
+  "keywords": [
+    "teamcity",
+    "mcp",
+    "model-context-protocol",
+    "qa",
+    "ci",
+    "test-automation",
+    "flaky-tests",
+    "root-cause-analysis",
+    "build-failures"
+  ]
 }
