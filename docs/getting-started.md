@@ -1,12 +1,22 @@
 # Getting started
 
-From zero to your first AI-assisted build analysis in about five minutes.
+From zero to one complete build analysis in about ten minutes.
+
+This page is a single, finished path: connect the server, verify it, run one
+real analysis, and judge the result. Follow it end to end — at the bottom there
+are three questions worth answering once you get there.
 
 ## 1. Create a TeamCity access token
 
 1. Log in to your TeamCity instance.
 2. Open your profile → **Access Tokens** → **Create access token**.
-3. Give it read-only permissions and copy the value — you will not see it again.
+3. Copy the value — you will not see it again.
+
+TeamCity tokens inherit the permissions of the account that creates them; there
+is no read-only switch on the token itself. If you want to be certain this
+server can only read, create the token from an account whose role on the target
+projects is view-only — the built-in *Project viewer* role covers everything
+used here.
 
 ## 2. Find your build configuration ID
 
@@ -25,12 +35,12 @@ claude mcp add --scope user --transport stdio teamcity-qa-mcp \
   --env TEAMCITY_URL=https://your-teamcity.com \
   --env TEAMCITY_TOKEN=your-token \
   --env TEAMCITY_BUILD_TYPE_ID=Your_BuildConfig_Id \
-  -- npx -y git+https://github.com/kate-horshchar/teamcity-qa-mcp.git
+  -- npx -y teamcity-qa-mcp
 ```
 
 Other clients (Cursor, VS Code, JetBrains AI): register a stdio MCP server
-with the same command (`npx -y git+https://github.com/kate-horshchar/teamcity-qa-mcp.git`)
-and the same three environment variables.
+with the same command (`npx -y teamcity-qa-mcp`) and the same three
+environment variables.
 
 ## 4. Verify the connection
 
@@ -38,31 +48,76 @@ Ask your AI client:
 
 > List the recent builds
 
-You should see compact build cards (number, status, dates, branch). If you
-cloned the repo instead, you can also verify outside the AI client:
+**This worked if** you get back a short list of build cards — build number,
+status, start and finish dates, branch. Nothing more is needed at this stage:
+if the cards are there, the token, the URL, and the configuration ID are all
+correct.
 
-```bash
-npx tsx scripts/smoke-test.ts
-```
+**If it did not work**, jump to [Troubleshooting](#troubleshooting) below
+before continuing — the next step depends on this one.
 
-## 5. Run your first analysis
+## 5. Run one full analysis
 
-Some useful first questions:
+This is the part worth judging. Ask:
 
-- *"Why did the last build fail?"* — the AI will use
-  `get_failed_build_analysis_context` and cluster the failures by root cause.
-- *"Is `MyTest` flaky?"* — `get_test_history` shows its pass/fail sequence.
-- *"Did this timeout happen before?"* — `find_failure_across_builds` checks
-  the recent history for the same pattern.
-- *"How healthy is project X today?"* — `get_multi_config_failure_summary`
-  aggregates all configurations of a project (see
-  [multi-config analysis](multi-config.md)).
+> Find the most recent failed build and tell me why it failed
 
-For repeatable, structured workflows use the [Claude plugin](cowork-plugin.md)
-or the copy-paste [prompts](../prompts/README.md).
+The AI will pull a one-call analysis context, cluster the failures by root
+cause, and compare the build against the last green one.
+
+If you installed the [Claude plugin](../plugin/README.md), the same workflow
+runs as `/analyze-failed-build` — a fixed prompt instead of a free-form one.
+
+**A good result contains all of these:**
+
+- Failures **grouped by root cause**, not listed one by one — twenty tests
+  failing on the same exception is one problem, not twenty.
+- Each group marked **new or recurring** — was it already failing in the
+  previous build?
+- **Flaky suspicion** stated as a likelihood, never as a verdict.
+- The **commits in this build**, and whether any of them touch the area the
+  failing tests exercise.
+- A short **what to check first** list, ordered.
+
+Compare what you got with the worked example in
+[`examples/analyze-failed-build.md`](../examples/analyze-failed-build.md) — it
+shows the same workflow on fictional data, including the shape of the tool
+responses behind it.
+
+**No failed builds right now?** Ask for an older one instead:
+*"List the last 20 builds including failures"*, then point the analysis at a
+specific build ID.
+
+## 6. Tell me how it went
+
+You have now seen the tool do the thing it exists to do. Three questions are
+more useful to me than anything else:
+
+1. Did the setup work using only this page, without guessing anything?
+2. Did the analysis group the failures the way you would have grouped them?
+3. What did it miss that you would have checked yourself?
+
+[Open an issue](https://github.com/kate-horshchar/teamcity-qa-mcp/issues/new/choose)
+with whatever you have — a half-answer is fine, and a description of where you
+gave up is the most valuable report of all.
+
+## Where to go next
+
+- [Root cause detection](root-cause-detection.md) — how code changes, flaky
+  tests, and infrastructure problems are told apart
+- [Multi-config analysis](multi-config.md) — one project instead of one
+  configuration
+- [Claude plugin](../plugin/README.md) — the same workflows as repeatable slash
+  commands, plus HTML health reports
+- [Prompts](../prompts/README.md) — the same workflows for non-Claude clients
 
 ## Troubleshooting
 
+- **The server never starts / shows as failed to connect** — almost always a
+  missing environment variable. All three of `TEAMCITY_URL`, `TEAMCITY_TOKEN`
+  and `TEAMCITY_BUILD_TYPE_ID` are required, and the server exits immediately
+  if one is absent. The error text goes to the MCP server log, not to the chat:
+  in Claude Code, check the server entry with `claude mcp list`.
 - **401 Unauthorized** — the token expired or lacks permissions. Create a new
   one and update it without restarting: ask the AI to call `set_auth_token`.
 - **Empty build list** — check `TEAMCITY_BUILD_TYPE_ID`: it must be the ID
