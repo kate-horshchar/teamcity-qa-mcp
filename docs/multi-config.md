@@ -74,5 +74,5 @@ Two related suites, three days back, regressions only:
 
 A worked end-to-end scenario with responses lives in
 [examples/multi-config-summary.md](../examples/multi-config-summary.md), and
-`/generate-report` in the [plugin](cowork-plugin.md) turns the same call into
+`/generate-report` in the [plugin](../plugin/README.md) turns the same call into
 a self-contained HTML health report.

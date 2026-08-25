@@ -1,6 +1,12 @@
 # TeamCity QA Plugin
 
-Claude plugin for practical QA analysis of TeamCity builds. Works in Claude Code, Claude Desktop, and Claude Cowork. Uses the [teamcity-qa-mcp](../README.md) MCP server for data access — the plugin contains no credentials and makes no direct network calls.
+Claude plugin for practical QA analysis of TeamCity builds. It packages proven
+workflows as slash commands and works in **Claude Code**, **Claude Desktop**,
+and **Claude Cowork** — plugins share one format across all three.
+
+The plugin uses the [teamcity-qa-mcp](../README.md) MCP server for data access:
+it contains no credentials and makes no network calls of its own, it only drives
+the server's tools.
 
 ## Requirements
 
@@ -14,7 +20,7 @@ You can update `TEAMCITY_BUILD_TYPE_ID` and `TEAMCITY_TOKEN` at runtime using th
 
 ## Installation
 
-### Claude Code
+### Claude Code (individual)
 
 This repository is itself a plugin marketplace:
 
@@ -23,13 +29,16 @@ This repository is itself a plugin marketplace:
 /plugin install teamcity-qa@teamcity-qa-mcp
 ```
 
-### Claude Cowork (organization-level)
+### Claude Cowork (organization)
 
-Organization admins can upload the plugin as a zip: **Organization settings → Plugins → Add plugin → Upload**. Build the zip from this folder with:
+Organization admins can upload the plugin as a zip: **Organization settings → Plugins → Add plugin → Upload**. Build the zip from a repo checkout with:
 
 ```bash
-npm run pack-plugin
+npm run pack-plugin   # → teamcity-qa.zip
 ```
+
+GitHub-synced organization marketplaces require a private repository, so for
+this public repo the zip is the distribution path for organizations.
 
 ## Commands
 
@@ -55,17 +64,39 @@ The `green_vs_green` mode is designed for investigating test count differences b
 
 ### `/change-impact-review [BUILD_ID]`
 
-Review whether recent code changes may relate to build failures.
+Review whether recent code changes may relate to build failures — correlation, not blame.
 
 ### `/flaky-test-review [LOOKBACK_BUILDS]`
 
-Identify likely flaky tests from recent build history. Default lookback: 10 builds.
+Identify likely flaky tests from recent build history, and separate them from consistently broken ones. Default lookback: 10 builds.
 
 ### `/test-count-stability [LOOKBACK_BUILDS]`
 
 Analyze test count stability across recent green builds. Identifies parameterized test rotation, real test additions/removals, and whether count instability is cosmetic or a real concern. Default lookback: 10 builds.
 
-## Shared Skills
+## Shared skills
 
-- **qa-analysis** — shared analysis rules used by all commands: failure grouping, new-vs-recurring classification, flaky identification, parameterized test noise detection, and report quality standards.
-- **html-report** — presentation logic for HTML reports: health badge rules, report structure, and the self-contained (inline CSS, zero external requests) requirement. Used by `/generate-report` and any scheduled health-check task.
+Two skills keep every command consistent:
+
+- **qa-analysis** — the analysis rules used by all commands: failure grouping,
+  new-vs-recurring classification, flaky identification with disciplined
+  language ("likely flaky", never "definitely"), parameterized test noise
+  detection, and the report quality bar.
+- **html-report** — presentation rules for HTML reports: health badge
+  (green/amber/red) criteria, section order, and the hard requirement that
+  reports stay self-contained (inline CSS, no JavaScript, zero external
+  requests) so they open from `file://` and inside restrictive iframes.
+
+## Scheduled health checks
+
+`/generate-report` with no arguments is deliberately autonomous — it asks no
+follow-up questions. That makes it directly usable in a scheduled task ("every
+morning run `/generate-report`"), producing a daily HTML health report. The
+logic lives in the plugin rather than in anyone's personal prompt, so the report
+stays the same no matter who or what triggers it.
+
+## Using without Claude
+
+Every command also exists as a standalone prompt in
+[`prompts/`](../prompts/README.md) — the same logic, usable with any
+MCP-compatible client such as Cursor, VS Code Copilot, or JetBrains AI.
