@@ -4,7 +4,7 @@
 // Adds teamcity-qa-mcp to Claude Desktop's config file.
 //
 // Usage:
-//   npx -y git+https://github.com/kate-horshchar/teamcity-qa-mcp.git setup-desktop \
+//   npx -y teamcity-qa-mcp setup-desktop \
 //     --url https://your-teamcity.com \
 //     --token your-token \
 //     --build-type Your_BuildConfig_Id
@@ -13,7 +13,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { getDesktopConfigCandidates } from "./utils/config-persistence.js";
 
-const PACKAGE_URL = "git+https://github.com/kate-horshchar/teamcity-qa-mcp.git";
+const PACKAGE_NAME = "teamcity-qa-mcp";
 const SERVER_NAME = "teamcity-qa-mcp";
 
 interface DesktopConfig {
@@ -71,7 +71,7 @@ function parseArgs(args: string[]): {
 function printUsage(): void {
   console.log(`
 Usage:
-  npx -y ${PACKAGE_URL} setup-desktop \\
+  npx -y ${PACKAGE_NAME} setup-desktop \\
     --url <teamcity-url> \\
     --token <api-token> \\
     --build-type <build-config-id>
@@ -116,7 +116,7 @@ function main(): void {
   // Add or update the server entry
   (config.mcpServers as Record<string, unknown>)[SERVER_NAME] = {
     command: "npx",
-    args: ["-y", PACKAGE_URL],
+    args: ["-y", PACKAGE_NAME],
     env: {
       TEAMCITY_URL: url,
       TEAMCITY_TOKEN: token,
