@@ -5,6 +5,29 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.3.1] — 2026-08-24
+
+### Added
+- MPL-2.0 license — the repository had no license file before this release.
+- npm registry metadata: `license`, `author`, `engines` (Node >= 20),
+  `repository`, `bugs`, `homepage`, `keywords`.
+- README sections for first-time readers: `Requirements`, `Is this for you?`,
+  and `Data, permissions & scope` — what is read, what reaches the AI provider,
+  where the token is stored, and what the server never does.
+- Issue template, and sample report screenshots in the README.
+
+### Changed
+- Published to npm: the documented install is now `npx -y teamcity-qa-mcp`,
+  with the GitHub install kept as a fallback. `setup-desktop` writes the npm
+  package name into the Claude Desktop config instead of a git URL.
+- `docs/getting-started.md` is one bounded evaluation path with a success
+  criterion and a feedback step; `docs/cowork-plugin.md` merged into
+  `plugin/README.md`; the README tool reference moved down and collapsed.
+
+### Fixed
+- Corrected the "read-only token" instruction: TeamCity tokens inherit the
+  permissions of the account that creates them.
+
 ## [1.3.0] — 2026-07-07
 
 ### Added
@@ -89,6 +112,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
   build comparison, and aggregated analysis contexts; Claude Desktop setup
   script and live smoke test.
 
+[1.3.1]: https://github.com/kate-horshchar/teamcity-qa-mcp/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/kate-horshchar/teamcity-qa-mcp/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/kate-horshchar/teamcity-qa-mcp/compare/v1.1.2...v1.2.0
 [1.1.2]: https://github.com/kate-horshchar/teamcity-qa-mcp/compare/v1.1.1...v1.1.2

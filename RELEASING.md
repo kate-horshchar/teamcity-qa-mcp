@@ -47,6 +47,12 @@ kept equal to it at every release.
    Optionally attach the Cowork plugin zip: `npm run pack-plugin` and add
    `teamcity-qa.zip` to the release assets.
 
+6. **Publish to npm** (asks for the 2FA passkey):
+
+   ```bash
+   npm publish --access public
+   ```
+
 ## Notes
 
 - The git tag, the GitHub Release, `package.json`, and the CHANGELOG heading
