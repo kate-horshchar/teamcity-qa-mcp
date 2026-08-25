@@ -1,0 +1,65 @@
+name: Feedback, bug report, or idea
+description: Anything about TeamCity QA Intelligence — something broken, how the evaluation went, or something you wish it did.
+title: "[feedback] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. Two fields are required, the rest only help
+        if you have them — a short, incomplete report is much better than none.
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What is this about?
+      options:
+        - Something is broken
+        - Feedback from trying it out
+        - An idea or a request
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, or what would you like to say?
+      description: |
+        For a bug: what you did, what you expected, what you got instead.
+        For feedback: whatever stood out — including what was confusing.
+      placeholder: |
+        I followed docs/getting-started.md and got as far as step 4. Asking
+        "List the recent builds" returned an empty list even though the build
+        configuration has builds from today.
+    validations:
+      required: true
+
+  - type: textarea
+    id: where
+    attributes:
+      label: Where in the process did this happen?
+      description: Which step of [Getting started](https://github.com/kate-horshchar/teamcity-qa-mcp/blob/main/docs/getting-started.md), or which command or tool.
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Only needed if something is broken.
+      placeholder: |
+        AI client:     Claude Code 2.x  (or Claude Desktop / Cursor / ...)
+        Node:          node -v
+        TeamCity:      2025.x  (Help -> About)
+        Installed via: npm  (or GitHub / clone)
+        OS:            Windows 11 / macOS 15 / Ubuntu 24.04
+      render: text
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: |
+        **Please do not paste real tokens, internal URLs, or proprietary build
+        logs.** Redact anything you would not put in a public issue — what the
+        server reads and where it sends it is described in
+        [Data, permissions & scope](https://github.com/kate-horshchar/teamcity-qa-mcp#data-permissions--scope).
