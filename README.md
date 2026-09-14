@@ -5,6 +5,29 @@
 > Read-only MCP server for AI-assisted root-cause analysis of TeamCity build failures.
 > Package and server name: `teamcity-qa-mcp`.
 
+## MSSE Capstone submission
+
+This branch contains my Quantic MSSE Capstone submission. The tool itself is developed on
+`main`; this branch adds the Capstone documentation.
+
+| Deliverable | Link |
+|---|---|
+| MCP server source code | [teamcity-qa-mcp](https://github.com/kate-horshchar/teamcity-qa-mcp) |
+| Agile task board | [Trello board](https://trello.com/b/hmtxAchw/teamcity-qa-intelligence-msse-capstone) |
+| Design and testing document | [docs/capstone/DESIGN_AND_TESTING.md](docs/capstone/DESIGN_AND_TESTING.md) |
+| Capstone scope, timeline and AI tooling | [docs/capstone/CAPSTONE_SCOPE.md](docs/capstone/CAPSTONE_SCOPE.md) |
+| Demo environment and failure scenarios | [docs/capstone/DEMO_SCENARIOS.md](docs/capstone/DEMO_SCENARIOS.md) |
+| Released version | [teamcity-qa-mcp on npm](https://www.npmjs.com/package/teamcity-qa-mcp) |
+| Demo application (supporting resource) | [found-outside](https://github.com/kate-horshchar/found-outside) |
+
+**Deployment.** This is not a web application. It is an MCP server that runs locally inside the
+user's AI client, so the released version is the npm package. Deployment options and their
+relative cost are described in the design and testing document.
+
+**Work before the Capstone.** The first versions (v1.0.0 to v1.1.2, March 2026) were built
+before the Capstone started. What was done before and during the Capstone is described in
+[CAPSTONE_SCOPE.md](docs/capstone/CAPSTONE_SCOPE.md).
+
 ## The problem
 
 When a CI test run goes red, finding out *why* is manual detective work: open the build, copy stack traces, scan the log, check what changed, compare with the previous build, search whether the same test failed before. For a build with dozens of failures this takes serious time — and most of it is mechanical data gathering, not thinking.
